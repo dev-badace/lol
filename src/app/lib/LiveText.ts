@@ -206,7 +206,7 @@ export class LiveText {
     this.__length -= 1;
 
     //Push it to the delete vector
-    if (this.deletedItems[this.clientId]) {
+    if (!this.deletedItems[this.clientId]) {
       this.deletedItems[this.clientId] = [
         {
           id: this.__deletedLamportTimestamp.id,
