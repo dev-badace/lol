@@ -1,0 +1,244 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@200;400;500;700;900&display=swap");
+
+.App {
+  max-width: 700px;
+  margin: 5rem auto;
+  font-family: Poppins, sans-serif;
+}
+
+/* TitTap Editor Design */
+.ProseMirror {
+  padding: 10px;
+  border-top: 1px solid grey;
+  background: white;
+  border-radius: 0 0 5px 5px;
+  min-height: 100px;
+}
+.ProseMirror:focus {
+  border: none;
+  outline: 1px solid aqua;
+}
+
+.ProseMirror > * + * {
+  margin-top: 0.75em;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding: 0 2rem;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
+  line-height: 1.1;
+}
+
+.ProseMirror code {
+  background-color: rgba(#616161, 0.1);
+  color: #616161;
+}
+
+.ProseMirror pre {
+  background: #0d0d0d;
+  color: #fff;
+  font-family: "JetBrainsMono", monospace;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+}
+.ProseMirror code {
+  color: inherit;
+  padding: 0;
+  background: none;
+  font-size: 0.8rem;
+}
+
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+}
+
+.ProseMirror blockquote {
+  padding-left: 1rem;
+  border-left: 3px solid #999999;
+}
+
+.ProseMirror hr {
+  border: none;
+  border-top: 3px solid #999999;
+  margin: 2rem 0;
+}
+
+/* ............................ */
+.textEditor {
+  border-radius: 5px;
+  border: 1px solid grey;
+}
+.menuBar {
+  padding-bottom: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.menuBar button {
+  font-size: 18px;
+  margin: 7px;
+  margin-right: 15px;
+  outline: none;
+  border: none;
+  background: none;
+  color: rgb(70, 70, 70);
+  cursor: pointer;
+}
+.menuBar button:last-child {
+  margin-right: 7px;
+}
+
+.heading3 {
+  font-size: 15px;
+}
+
+button.is_active {
+  background: rgb(197, 197, 197);
+  padding: 2px 3px;
+  border-radius: 2px;
+}
+
+.selected {
+  font-weight: bold;
+}
+.count {
+  display: flex;
+  align-items: center;
+  font-weight: bold;
+  color: #27b127;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.count:before {
+  content: "";
+  display: inline-flex;
+  background-color: #27b127;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+}
+
+.cursor.me {
+  display: none;
+  /*background-color: #F55;*/
+}
+.cursor.inactive {
+  opacity: 0.5;
+}
+.cursor.me::after {
+  display: none;
+  border-color: inherit;
+}
+.cursor.inactive::after {
+  opacity: inherit;
+  border-color: inherit;
+}
+
+.cursor {
+  /*background-color: #555;*/
+  color: #fff;
+  text-align: center;
+  border-radius: 6px 6px 6px 0px;
+  padding: 5px;
+  margin-left: -4.5px;
+  position: absolute;
+  z-index: 1;
+  bottom: 5px;
+  left: -50%;
+  opacity: 0.85;
+  white-space: nowrap;
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Non-prefixed version, currently supported by Chrome and Opera */
+}
+.cursor::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0%;
+  border-width: 5px;
+  border-style: solid;
+  border-color: inherit;
+  /*border-color: #555 transparent transparent transparent;*/
+  color: transparent;
+}
+
+.editor__content {
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  padding: 0.375rem 0.75rem;
+  background-color: #f5f5f5;
+}
+
+.bv-row {
+  padding-top: 20px;
+}
+.ProseMirror-widget {
+  position: absolute;
+
+  width: 0.1px;
+  /*border-style: solid;*/
+}
+
+button.is-active {
+  font-color: #fff;
+  background-color: #ddd;
+  font-weight: bold;
+}
+
+.btn {
+  margin: 5px;
+  border-color: #ddd;
+}
+
+blockquote {
+  border-radius: 3px;
+  position: relative; /*  <--- */
+  font-style: italic;
+  text-align: center;
+  padding: 1rem 1.2rem;
+  width: 70%; /* create space for the quotes */
+  color: #4a4a4a;
+  margin: 1rem auto 2rem;
+  color: #4a4a4a;
+  background: #e8e8e8;
+}
+blockquote p {
+  margin-bottom: 0px;
+}
+/* -- create the quotation marks -- */
+blockquote:before,
+blockquote:after {
+  font-family: FontAwesome;
+  position: absolute;
+  /* -- inside the relative position of blockquote -- */
+  top: 13px;
+  color: #e8e8e8;
+  font-size: 34px;
+}
+blockquote:before {
+  content: "\f10d";
+  margin-right: 13px;
+  right: 100%;
+}
+blockquote:after {
+  content: "\f10e";
+  margin-left: 13px;
+  left: 100%;
+}

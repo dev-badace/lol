@@ -1,0 +1,514 @@
+import { useEditor, EditorContent, Editor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
+import {
+  FaBold,
+  FaHeading,
+  FaItalic,
+  FaListOl,
+  FaListUl,
+  FaQuoteLeft,
+  FaRedo,
+  FaStrikethrough,
+  FaUnderline,
+  FaUndo,
+} from "react-icons/fa";
+import { Collab, createDecorations, randCol } from "../ext/collab";
+import { Step } from "@tiptap/pm/transform";
+import { LiveText } from "../lib/LiveText";
+// import Document from "@tiptap/extension-document";
+import Paragraph from "@tiptap/extension-paragraph";
+import Text from "@tiptap/extension-text";
+import HardBreak from "@tiptap/extension-hard-break";
+import { Node } from "@tiptap/core";
+import {
+  useBroadcastEvent,
+  useEventListener,
+  useOthers,
+  useUpdateMyPresence,
+} from "../liveblocks.config";
+import { RemoteNode } from "../lib/types";
+import { useEffect, useState } from "react";
+
+export const Document = Node.create({
+  name: "doc",
+  topNode: true,
+  content: "inline+",
+});
+
+// const MenuBar = ({ editor }) => {
+//   if (!editor) {
+//     return null;
+//   }
+
+//   return (
+//     <div className="menuBar">
+//       <div>
+//         <button
+//           onClick={() => editor.chain().focus().toggleBold().run()}
+//           className={editor.isActive("bold") ? "is_active" : ""}
+//         >
+//           <FaBold />
+//         </button>
+//         <button
+//           onClick={() => editor.chain().focus().toggleItalic().run()}
+//           className={editor.isActive("italic") ? "is_active" : ""}
+//         >
+//           <FaItalic />
+//         </button>
+//         <button
+//           onClick={() => editor.chain().focus().toggleUnderline().run()}
+//           className={editor.isActive("underline") ? "is_active" : ""}
+//         >
+//           <FaUnderline />
+//         </button>
+//         <button
+//           onClick={() => editor.chain().focus().toggleStrike().run()}
+//           className={editor.isActive("strike") ? "is_active" : ""}
+//         >
+//           <FaStrikethrough />
+//         </button>
+//         <button
+//           onClick={() =>
+//             editor.chain().focus().toggleHeading({ level: 2 }).run()
+//           }
+//           className={
+//             editor.isActive("heading", { level: 2 }) ? "is_active" : ""
+//           }
+//         >
+//           <FaHeading />
+//         </button>
+//         <button
+//           onClick={() =>
+//             editor.chain().focus().toggleHeading({ level: 3 }).run()
+//           }
+//           className={
+//             editor.isActive("heading", { level: 3 }) ? "is_active" : ""
+//           }
+//         >
+//           <FaHeading className="heading3" />
+//         </button>
+//         <button
+//           onClick={() => editor.chain().focus().toggleBulletList().run()}
+//           className={editor.isActive("bulletList") ? "is_active" : ""}
+//         >
+//           <FaListUl />
+//         </button>
+//         <button
+//           onClick={() => editor.chain().focus().toggleOrderedList().run()}
+//           className={editor.isActive("orderedList") ? "is_active" : ""}
+//         >
+//           <FaListOl />
+//         </button>
+//         <button
+//           onClick={() => editor.chain().focus().toggleBlockquote().run()}
+//           className={editor.isActive("blockquote") ? "is_active" : ""}
+//         >
+//           <FaQuoteLeft />
+//         </button>
+//       </div>
+//       <div>
+//         <button onClick={() => editor.chain().focus().undo().run()}>
+//           <FaUndo />
+//         </button>
+//         <button onClick={() => editor.chain().focus().redo().run()}>
+//           <FaRedo />
+//         </button>
+//       </div>
+//     </div>
+//   );
+// };
+
+function getExtensionOptions(editor: Editor, name: string) {
+  const extension = editor.extensionManager.extensions.find(
+    (extension) => extension.name === name
+  );
+
+  if (!extension) throw new Error("extension not found");
+
+  return extension.options;
+}
+
+const myLivetext = new LiveText();
+const localDoc = localStorage.getItem("myDoc");
+if (localDoc) {
+  myLivetext.merge(JSON.parse(localDoc));
+}
+
+export const Tiptap = ({ setDescription }) => {
+  const broadcast = useBroadcastEvent();
+  const updateMyPresence = useUpdateMyPresence();
+  const others = useOthers();
+  // const [] = useState()
+
+  useEffect(() => {
+    //@ts-ignore
+
+    console.log(`broadasting`);
+    console.log(myLivetext.getStateVector());
+    broadcast(
+      { type: "vectorState", vector: myLivetext.getStateVector() },
+      { shouldQueueEventIfNotReady: true }
+    );
+  }, [broadcast]);
+
+  const editor = useEditor({
+    extensions: [
+      Document,
+      HardBreak.extend({
+        addKeyboardShortcuts() {
+          return {
+            Enter: () => this.editor.commands.setHardBreak(),
+          };
+        },
+      }),
+      Text,
+      Collab,
+    ],
+    content: myLivetext.toProsemirrorJson(),
+
+    onTransaction: ({ editor }) => {
+      // console.log(editor.getJSON());
+    },
+    // onTransaction: ({ editor }) => {
+    //   console.log(`transaction`);
+    //   const cursorLine = editor.view.state.selection.$anchor.path[1];
+    //   const cursorIndex = editor.view.state.selection.$anchor.pos;
+
+    //   console.log(editor)
+    //   // console.log("cursorLine:", cursorLine, " index", cursorIndex);
+    // },
+
+    onUpdate: ({ editor, transaction }) => {
+      console.log(transaction);
+      console.log(`update`);
+
+      if (!transaction.docChanged) return;
+      // console.log(transaction.step.po)
+      // editor.lin
+
+      // const step = transaction.steps[0];
+      // console.log(transaction.steps[0]);
+
+      // console.log(step);
+
+      //* beginning step is to transform the event so that it makes some sense for the local liveText instance
+
+      const broadcastInsert = (index: number, value: string) => {
+        const block = myLivetext.insert(index, value);
+
+        const sendBlock: RemoteNode = {
+          id: block.id,
+          originLeft: block.originLeft,
+          originRight: block.originRight,
+          value: block.value,
+        };
+        broadcast({ type: "insert", val: sendBlock } as never);
+        index++;
+        localStorage.setItem("myDoc", JSON.stringify(myLivetext.getState()));
+        console.log(myLivetext.getStateVector());
+      };
+
+      const broadcastDelete = (index: number) => {
+        const block = myLivetext.delete(index);
+        if (block) {
+          const sendBlock: RemoteNode = {
+            id: block.id,
+            originLeft: block.originLeft,
+            originRight: block.originRight,
+            value: block.value,
+          };
+          broadcast({ type: "delete", val: sendBlock } as never);
+          localStorage.setItem("myDoc", JSON.stringify(myLivetext.getState()));
+        }
+      };
+
+      transaction.steps.map((step) => {
+        let action: string;
+        let index: number;
+
+        const parsedStep = step.toJSON();
+
+        console.log(parsedStep);
+
+        if (parsedStep.stepType !== "replace")
+          console.error(`unsupported step type ${parsedStep.stepType}`);
+
+        if (parsedStep.to === parsedStep.from) {
+          index = parsedStep.from;
+
+          parsedStep.slice.content.map((content: any) => {
+            if (content.type === "text") {
+              for (let i = 0; i < content.text.length; i++) {
+                broadcastInsert(index, content.text[i]);
+              }
+            } else if (content.type === "hardBreak") {
+              broadcastInsert(index, "\n");
+            } else {
+              console.warn(`unsupported content type `, parsedStep);
+            }
+          });
+        } else {
+          //edge case or maybe special case, dunno
+          // if (parsedStep.from === 0 && parsedStep.to > myLivetext.__length) {
+          //   console.log(`isssuing full delete?`);
+          //   for (let i = myLivetext.__length - 1; i >= 0; i--) {
+          //     myLivetext.delete(i);
+          //   }
+          //   return;
+          // }
+
+          console.log(`before deletion`);
+          console.log(myLivetext.toString().length);
+
+          const deleteIndex = parsedStep.to - 1;
+
+          for (let i = deleteIndex; i >= parsedStep.from; i--) {
+            if (i < 0) break;
+            broadcastDelete(i);
+          }
+
+          console.log(`after deletion`);
+          console.log(myLivetext.toString().length);
+
+          index = parsedStep.from;
+          parsedStep.slice?.content?.map((content: any) => {
+            if (content.type === "text") {
+              for (let i = 0; i < content.text.length; i++) {
+                broadcastInsert(index, content.text[i]);
+              }
+            } else if (content.type === "hardBreak") {
+              broadcastInsert(index, "\n");
+            } else {
+              console.warn(`unsupported content type `, parsedStep);
+            }
+          });
+        }
+
+        console.log(editor.getJSON());
+        console.log(myLivetext.toProsemirrorJson());
+
+        // if (parsedStep.to === parsedStep.from) {
+        //   console.log(parsedStep);
+        //   index = parsedStep.from - 1;
+
+        //   parsedStep.slice.content.map((content: any, i: number) => {
+        //     if (content.type === "text") {
+        //       for (let i = 0; i < content.text.length; i++) {
+        //         myLivetext.insert(index, content.text[i]);
+        //         index++;
+        //       }
+
+        //       // console.log(`inserted -> ${content.text}`);
+        //     } else if (content.type === "paragraph") {
+        //       if (!content.content) {
+        //         if (index !== 0 || i !== 0) {
+        //           console.log(`adding`);
+        //           myLivetext.insert(index, "\n");
+        //           index++;
+        //         }
+        //         // console.log(`line break`);
+        //       } else {
+        //         if (index !== 0 || i !== 0) {
+        //           console.log(`adding`);
+        //           myLivetext.insert(index, "\n");
+        //           index++;
+        //         }
+        //         for (let i = 0; i < content.content[0].text.length; i++) {
+        //           myLivetext.insert(index, content.content[0].text[i]);
+        //           index++;
+        //         }
+
+        //         // console.log(
+        //         //   `line break with content ${content.content[0].text}`
+        //         // );
+        //       }
+        //     } else {
+        //       console.warn(`unsupprted text type`);
+        //       console.log(content);
+        //     }
+        //   });
+        // } else {
+        //   //delete index from to
+        //   //Edge case, i dunno, when a user does ctrl+a or select all
+        //   //and removes all of it, the replace step that is produced is kinda wrong, as the 'to' property exceeds the size of the doc itself
+        //   //note that this does not happens, when a user replaces the content with a copied string
+        //   if (parsedStep.from === 1 && parsedStep.to > myLivetext.__length) {
+        //     console.log(`delete/remove all`);
+
+        //     console.log(myLivetext.__length);
+        //     for (let i = myLivetext.__length - 1; i >= 0; i--) {
+        //       console.log(`deleting ${i} `);
+        //       myLivetext.delete(i);
+        //     }
+
+        //     return;
+        //   }
+
+        //   //insert-to starting from index
+
+        //   console.log(parsedStep);
+        //   let deleted: number = parsedStep.to - parsedStep.from;
+        //   let addCount: number = 0;
+
+        //   const deleteIndex = parsedStep.to - 2;
+
+        //   console.log(`deleting form ${deleteIndex} -> ${parsedStep.to - 2}`);
+        //   for (let i = deleteIndex; i > parsedStep.from - 2; i--) {
+        //     console.log(`deleting ${i}`);
+        //     if (i < 0) break;
+        //     myLivetext.delete(i);
+        //   }
+
+        //   console.log(`adding content to ${parsedStep.from - 1} ?`);
+
+        //   parsedStep.slice?.content?.map((content: any, i: number) => {
+        //     let index = parsedStep.from - 1 < 0 ? 0 : parsedStep.from - 1;
+        //     if (content.type === "text") {
+        //       for (let i = 0; i < content.text.length; i++) {
+        //         myLivetext.insert(index, content.text[i]);
+        //         index++;
+        //       }
+
+        //       // console.log(`inserted -> ${content.text}`);
+        //     } else if (content.type === "paragraph") {
+        //       console.log(parsedStep);
+        //       if (!content.content) {
+        //         if (index !== 0 && i !== 0) {
+        //           myLivetext.insert(index, "\n");
+        //           index++;
+        //         }
+        //         // console.log(`line break`);
+        //       } else {
+        //         if (index !== 0 && i !== 0) {
+        //           myLivetext.insert(index, "\n");
+        //           index++;
+        //         }
+        //         for (let i = 0; i < content.content[0].text.length; i++) {
+        //           myLivetext.insert(index, content.content[0].text[i]);
+        //           index++;
+        //         }
+
+        //         // console.log(
+        //         //   `line break with content ${content.content[0].text}`
+        //         // );
+        //       }
+        //     } else {
+        //       console.warn(`unsupprted text type`);
+        //       console.log(content);
+        //     }
+        //   });
+
+        //   // console.log(`delete -> ${deleted}`);
+        //   // console.log(`inserted -> ${addCount}`);
+        // }
+        // console.log(myLivetext.toString());
+
+        // console.log(editor.getText());
+        // console.log(myLivetext.toString().length);
+        // console.log(editor.getText().length);
+      });
+
+      //* first step is to add the change locally to the liveText instance
+      //* then have the liveText to create a json for our tiptap editor
+
+      // console.log(step.slice.content.content[0].content.size);
+
+      // console.log(step.slice.content.content[0].type.name);
+
+      // console.log(step.slice.content.content[0].text);
+
+      // console.log(transaction.steps.map((step) => console.log(step)));
+
+      // myLivetext.insert(0, "a");
+      // myLivetext.insert(1, "c");
+      // myLivetext.insert(1, "b");
+      // myLivetext.insert(1, "b");
+      // myLivetext.delete(1);
+      // myLivetext.insert(3, "d");
+      //bulk
+      // console.log(myLivetext.toString());
+
+      // console.log(editor.getJSON());
+      // console.log(editor.getText());
+      // console.log(editor.state)
+      // console.log(editor.view.state);
+      // console.log(editor.doc);
+      // editor.commands.setContent({
+      //   type: "doc",
+      //   content: [
+      //     {
+      //       type: "paragraph",
+      //       content: [
+      //         {
+      //           type: "text",
+      //           text: "It’s 19871. You can’t turn on a radio, or go to a mall without hearing Olivia Newton-John’s hit song, Physical.",
+      //         },
+      //       ],
+      //     },
+      //   ],
+      // });
+
+      // editor.doc.content = { content: [{ type: "paragraph", content: "bob" }] };
+      const html = editor.getHTML();
+      setDescription(html);
+    },
+
+    onCreate: ({ editor }) => {
+      const ext = getExtensionOptions(editor, "mycollabor");
+      // console.log(ext);
+      setInterval(() => {
+        // console.log(ext);
+        // ext.updateCursor(editor);
+      }, 1000);
+      // setInterval(() => createDecorations(editor, randCol()), 1000);
+    },
+  });
+
+  useEventListener(({ connectionId, event }) => {
+    console.log(`event recieved`);
+    console.log(connectionId, event);
+
+    // const ext = getExtensionOptions(editor, "mycollabor");
+    // console.log(ext);
+    // console.log(editor);
+
+    // ext.remoteUpdate(event, editor);
+
+    if (event.type === "vectorState") {
+      console.log(`someone sent vectorState -> `, event.vector);
+      const { sendableUpdates, shouldBroadcastVector } =
+        myLivetext.sendableUpdates(event.vector || {});
+      if (sendableUpdates.length >= 1)
+        broadcast({ type: "updates", updates: sendableUpdates });
+
+      if (shouldBroadcastVector)
+        broadcast({ type: "vectorState", vector: myLivetext.getStateVector() });
+      return;
+    }
+
+    if (event.type === "updates") {
+      console.log(`someone sent updates`);
+      myLivetext.merge(event.updates);
+      editor?.commands.setContent(myLivetext.toProsemirrorJson());
+      console.log(myLivetext.getStateVector());
+      console.log(event.updates);
+      localStorage.setItem("myDoc", JSON.stringify(myLivetext.getState()));
+      return;
+    }
+
+    myLivetext.merge([event.val] as any);
+
+    console.log(myLivetext.toString());
+    console.log(myLivetext.toProsemirrorJson());
+    console.log(myLivetext.getStateVector());
+    editor?.commands.setContent(myLivetext.toProsemirrorJson());
+    localStorage.setItem("myDoc", JSON.stringify(myLivetext.getState()));
+  });
+  return (
+    <div className="textEditor">
+      {/* <MenuBar editor={editor} /> */}
+      <EditorContent editor={editor} />
+    </div>
+  );
+};
