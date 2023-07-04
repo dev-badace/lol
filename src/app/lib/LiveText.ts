@@ -24,6 +24,7 @@ export class LiveText {
   clientId: number; //client id of the user. used for generating lamport timestamps.
   items: Node[]; //the entire state
   deletedItems: DeleteSet; //a ClientId and deleted items id map
+  pendingUpdates: RemoteNode[]; //these are a list of out of order updates, waiting for their deps
 
   __lamportTimestamp: LamportTimestamp; //the lamport timestamp for inserts
   __deletedLamportTimestamp: LamportTimestamp; //the lamport timestamp for deletes
@@ -34,6 +35,7 @@ export class LiveText {
   constructor() {
     this.clientId = randomInt(999999);
     this.items = [];
+    this.pendingUpdates = [];
     this.deletedItems = {};
     this.__length = 0;
     this.__lamportTimestamp = new LamportTimestamp(this.clientId);
@@ -242,16 +244,26 @@ export class LiveText {
           ];
 
         //duplicate
-        if (item.id[1] === deletedItem.id[1]) return;
-
-        if (item.id[1] + 1 !== deletedItem.id[1]) {
-          console.warn(`todo!, out of order delete, ignoring it`, item);
+        if (deletedItem.id[1] <= item.id[1]) {
+          console.log(`we coninuted`);
           return;
         }
 
+        if (item.id[1] + 1 !== deletedItem.id[1]) {
+          console.warn(
+            `todo!, out of order delete, ignoring it`,
+            item,
+            deletedItem
+          );
+          return;
+        }
+
+        console.log(`adding 2 to our list `);
         node.value = "";
         this.__length -= 1;
         this.deletedItems[deletedItem.id[0]].push(deletedItem);
+        console.log(`we're reachng here?`);
+        console.log(this.deletedItems);
       } else {
         if (deletedItem.id[1] !== 0) {
           console.log(`out or order delete, ignoring it`);
@@ -262,6 +274,9 @@ export class LiveText {
         this.__length -= 1;
         this.deletedItems[deletedItem.id[0]] = [deletedItem];
       }
+    } else {
+      console.log(`node not found`);
+      console.log(deletedItem);
     }
   }
 
@@ -292,6 +307,25 @@ export class LiveText {
     const node = this.findNodeById(block.id);
 
     if (node) return false;
+
+    //check for correct order of insert
+
+    const stateVector = this.getStateVector();
+
+    console.log(block);
+    console.log(stateVector);
+    if (typeof stateVector[block.id[0]] === "undefined" && block.id[1] !== 0) {
+      console.log(`case 1`);
+
+      return false;
+    } else if (
+      typeof stateVector[block.id[0]] === "number" &&
+      stateVector[block.id[0]] !== block.id[1] - 1
+    ) {
+      console.log(`case 2`);
+      return false;
+    }
+
     return true;
   };
 
@@ -318,6 +352,7 @@ export class LiveText {
   //merge with a remote/other Doc's state
   merge(remoteState: RemoteNode[]) {
     const { newDeletes, unseenUpdates } = this.findChanges(remoteState);
+    let isPending: boolean = false;
 
     console.log(unseenUpdates);
 
@@ -329,7 +364,11 @@ export class LiveText {
       if (!this.canInsert(newItem)) {
         //   pendingUpdates.push(newItem);
 
-        console.warn(`pending updates man!,`, newItem);
+        //todo
+        // this.pendingUpdates.push(newItem)
+        isPending = true;
+
+        console.log(`pending item `, newItem);
 
         continue;
       }
@@ -496,6 +535,10 @@ export class LiveText {
         this.__length += 1;
       }
     }
+
+    return isPending;
+
+    //* loop for merging the pending updates.
   }
 
   //   //merge with a remote Doc's deletes
@@ -507,6 +550,7 @@ export class LiveText {
   syncDeletes(deleteSet: DeleteSet) {
     for (let clientId in deleteSet) {
       deleteSet[clientId].map((deletedItem) => {
+        console.log(deletedItem);
         this.deleteNodeById(deletedItem);
       });
     }
@@ -749,7 +793,7 @@ export class LiveText {
 
         if (remoteVector[clientId] > localVector[clientId]) continue;
         sendableDeletes[clientId] = [
-          ...this.deletedItems[clientId].slice(remoteVector[clientId]),
+          ...this.deletedItems[clientId].slice(remoteVector[clientId] - 1),
         ];
       } else {
         sendableDeletes[clientId] = [...this.deletedItems[clientId]];

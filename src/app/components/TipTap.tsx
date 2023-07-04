@@ -133,6 +133,8 @@ function getExtensionOptions(editor: Editor, name: string) {
 // localStorage.removeItem("myDoc");
 
 const myLivetext = new LiveText();
+
+window.myLivetext = myLivetext;
 const localDoc = localStorage.getItem("myDoc");
 if (localDoc) {
   console.log(JSON.parse(localDoc).deletes);
@@ -178,6 +180,7 @@ export const Tiptap = ({ setDescription }) => {
       Collab,
     ],
     content: myLivetext.toProsemirrorJson(),
+    editable: false,
 
     onTransaction: ({ editor }) => {
       // console.log(editor.getJSON());
@@ -473,6 +476,7 @@ export const Tiptap = ({ setDescription }) => {
     },
 
     onCreate: ({ editor }) => {
+      editor.setEditable(true);
       const ext = getExtensionOptions(editor, "mycollabor");
       // console.log(ext);
       setInterval(() => {
@@ -550,7 +554,16 @@ export const Tiptap = ({ setDescription }) => {
       return;
     }
 
-    myLivetext.merge([event.val] as any);
+    const pendingUpdates = myLivetext.merge([event.val] as any);
+
+    if (pendingUpdates)
+      broadcast({
+        type: "vectorState",
+        vectors: [
+          myLivetext.getStateVector(),
+          myLivetext.getDeleteStateVector(),
+        ],
+      });
 
     console.log(myLivetext.toString());
     editor?.commands.setContent(myLivetext.toProsemirrorJson());
