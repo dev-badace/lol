@@ -118,7 +118,7 @@ export class LiveText {
     //if the insert is at the beginning of the document
     if (index === 0) {
       //if there is no other block present! meaning this is the first entry in the doc
-      if (this.__length < 1) {
+      if (this.items.length < 1) {
         //set the start & end as the block, since it's the first entry
         this.__head = insertedBlock;
         this.__tail = insertedBlock;
@@ -374,7 +374,7 @@ export class LiveText {
       }
 
       //if this is the first insert, on a empty doc
-      if (this.__length < 1) {
+      if (this.items.length < 1) {
         this.__head = newItem;
         this.__tail = newItem;
         this.__length += 1;

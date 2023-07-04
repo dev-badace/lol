@@ -556,7 +556,7 @@ export const Tiptap = ({ setDescription }) => {
 
     const pendingUpdates = myLivetext.merge([event.val] as any);
 
-    if (pendingUpdates)
+    if (pendingUpdates) {
       broadcast({
         type: "vectorState",
         vectors: [
@@ -564,6 +564,9 @@ export const Tiptap = ({ setDescription }) => {
           myLivetext.getDeleteStateVector(),
         ],
       });
+
+      console.log(`braodcastin`);
+    }
 
     console.log(myLivetext.toString());
     editor?.commands.setContent(myLivetext.toProsemirrorJson());
