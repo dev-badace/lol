@@ -319,6 +319,8 @@ export class LiveText {
   merge(remoteState: RemoteNode[]) {
     const { newDeletes, unseenUpdates } = this.findChanges(remoteState);
 
+    console.log(unseenUpdates);
+
     //* loop over all new updates
     for (let item of unseenUpdates) {
       const newItem = this.buildBlock(item);

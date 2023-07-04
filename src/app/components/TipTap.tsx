@@ -129,7 +129,7 @@ function getExtensionOptions(editor: Editor, name: string) {
   return extension.options;
 }
 
-// localStorage.clear();
+localStorage.clear();
 // localStorage.removeItem("myDoc");
 
 const myLivetext = new LiveText();
@@ -425,6 +425,8 @@ export const Tiptap = ({ setDescription }) => {
         // console.log(editor.getText().length);
       });
 
+      editor?.commands.setContent(myLivetext.toProsemirrorJson());
+
       //* first step is to add the change locally to the liveText instance
       //* then have the liveText to create a json for our tiptap editor
 
@@ -551,8 +553,6 @@ export const Tiptap = ({ setDescription }) => {
     myLivetext.merge([event.val] as any);
 
     console.log(myLivetext.toString());
-    console.log(myLivetext.toProsemirrorJson());
-    console.log(myLivetext.getStateVector());
     editor?.commands.setContent(myLivetext.toProsemirrorJson());
     localStorage.setItem("myDoc", JSON.stringify(myLivetext.getEncodedDoc()));
   });
