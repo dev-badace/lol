@@ -129,7 +129,7 @@ function getExtensionOptions(editor: Editor, name: string) {
   return extension.options;
 }
 
-localStorage.clear();
+// localStorage.clear();
 // localStorage.removeItem("myDoc");
 
 const myLivetext = new LiveText();
