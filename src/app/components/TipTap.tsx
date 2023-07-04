@@ -129,10 +129,16 @@ function getExtensionOptions(editor: Editor, name: string) {
   return extension.options;
 }
 
+// localStorage.clear();
+// localStorage.removeItem("myDoc");
+
 const myLivetext = new LiveText();
 const localDoc = localStorage.getItem("myDoc");
 if (localDoc) {
-  myLivetext.merge(JSON.parse(localDoc));
+  console.log(JSON.parse(localDoc).deletes);
+  myLivetext.applyDoc(JSON.parse(localDoc));
+  console.log(myLivetext.deletedItems);
+  console.log(myLivetext.getDeleteStateVector());
 }
 
 export const Tiptap = ({ setDescription }) => {
@@ -147,7 +153,13 @@ export const Tiptap = ({ setDescription }) => {
     console.log(`broadasting`);
     console.log(myLivetext.getStateVector());
     broadcast(
-      { type: "vectorState", vector: myLivetext.getStateVector() },
+      {
+        type: "vectorState",
+        vectors: [
+          myLivetext.getStateVector(),
+          myLivetext.getDeleteStateVector(),
+        ],
+      },
       { shouldQueueEventIfNotReady: true }
     );
   }, [broadcast]);
@@ -205,22 +217,26 @@ export const Tiptap = ({ setDescription }) => {
         };
         broadcast({ type: "insert", val: sendBlock } as never);
         index++;
-        localStorage.setItem("myDoc", JSON.stringify(myLivetext.getState()));
+        localStorage.setItem(
+          "myDoc",
+          JSON.stringify(myLivetext.getEncodedDoc())
+        );
         console.log(myLivetext.getStateVector());
       };
 
       const broadcastDelete = (index: number) => {
         const block = myLivetext.delete(index);
         if (block) {
-          const sendBlock: RemoteNode = {
-            id: block.id,
-            originLeft: block.originLeft,
-            originRight: block.originRight,
-            value: block.value,
-          };
-          broadcast({ type: "delete", val: sendBlock } as never);
-          localStorage.setItem("myDoc", JSON.stringify(myLivetext.getState()));
+          broadcast({
+            type: "delete",
+            val: { [block.id[0]]: [block] },
+          } as never);
+          localStorage.setItem(
+            "myDoc",
+            JSON.stringify(myLivetext.getEncodedDoc())
+          );
         }
+        console.log(myLivetext.getDeleteStateVector());
       };
 
       transaction.steps.map((step) => {
@@ -285,8 +301,8 @@ export const Tiptap = ({ setDescription }) => {
           });
         }
 
-        console.log(editor.getJSON());
-        console.log(myLivetext.toProsemirrorJson());
+        // console.log(editor.getJSON());
+        // console.log(myLivetext.toProsemirrorJson());
 
         // if (parsedStep.to === parsedStep.from) {
         //   console.log(parsedStep);
@@ -476,14 +492,32 @@ export const Tiptap = ({ setDescription }) => {
     // ext.remoteUpdate(event, editor);
 
     if (event.type === "vectorState") {
-      console.log(`someone sent vectorState -> `, event.vector);
+      console.log(`someone sent vectorState -> `, event.vectors);
       const { sendableUpdates, shouldBroadcastVector } =
-        myLivetext.sendableUpdates(event.vector || {});
+        myLivetext.sendableUpdates(event.vectors[0] || {});
+
+      console.log(`state vectors`);
+      console.log(event.vectors[0]);
+      console.log(myLivetext.getStateVector());
+
+      const { sendableDeletes, shouldBroadcastDeleteVector } =
+        myLivetext.sendableDeletes(event.vectors[1] || {});
       if (sendableUpdates.length >= 1)
         broadcast({ type: "updates", updates: sendableUpdates });
 
-      if (shouldBroadcastVector)
-        broadcast({ type: "vectorState", vector: myLivetext.getStateVector() });
+      console.log(`these are their deletes`, sendableDeletes);
+      if (Object.keys(sendableDeletes).length >= 1)
+        broadcast({ type: "deletes", deletes: sendableDeletes });
+
+      if (shouldBroadcastVector || shouldBroadcastDeleteVector)
+        broadcast({
+          type: "vectorState",
+          vectors: [
+            myLivetext.getStateVector(),
+            myLivetext.getDeleteStateVector(),
+          ],
+        });
+
       return;
     }
 
@@ -493,7 +527,24 @@ export const Tiptap = ({ setDescription }) => {
       editor?.commands.setContent(myLivetext.toProsemirrorJson());
       console.log(myLivetext.getStateVector());
       console.log(event.updates);
-      localStorage.setItem("myDoc", JSON.stringify(myLivetext.getState()));
+      localStorage.setItem("myDoc", JSON.stringify(myLivetext.getEncodedDoc()));
+      return;
+    }
+
+    if (event.type === "deletes") {
+      console.log(`someone sent deletes`);
+      myLivetext.syncDeletes(event.deletes);
+      editor?.commands.setContent(myLivetext.toProsemirrorJson());
+      console.log(myLivetext.getStateVector());
+      console.log(event.deletes);
+      localStorage.setItem("myDoc", JSON.stringify(myLivetext.getEncodedDoc()));
+      return;
+    }
+
+    if (event.type === "delete") {
+      myLivetext.syncDeletes(event.val);
+      editor?.commands.setContent(myLivetext.toProsemirrorJson());
+      localStorage.setItem("myDoc", JSON.stringify(myLivetext.getEncodedDoc()));
       return;
     }
 
@@ -503,7 +554,7 @@ export const Tiptap = ({ setDescription }) => {
     console.log(myLivetext.toProsemirrorJson());
     console.log(myLivetext.getStateVector());
     editor?.commands.setContent(myLivetext.toProsemirrorJson());
-    localStorage.setItem("myDoc", JSON.stringify(myLivetext.getState()));
+    localStorage.setItem("myDoc", JSON.stringify(myLivetext.getEncodedDoc()));
   });
   return (
     <div className="textEditor">

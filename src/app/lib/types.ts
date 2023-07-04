@@ -35,3 +35,8 @@ export interface DeletedNode {
 export interface DeleteSet {
   [clientId: number]: DeletedNode[];
 }
+
+export interface EncodedDoc {
+  items: SimpleNode[];
+  deletes: DeleteSet;
+}

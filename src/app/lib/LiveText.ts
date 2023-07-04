@@ -1,6 +1,10 @@
+"use client";
+
 import { LamportTimestamp } from "./Lamport";
 import {
   DeletedNode,
+  DeleteSet,
+  EncodedDoc,
   ID,
   Node,
   RemoteNode,
@@ -12,11 +16,14 @@ const randomInt = (num: number) => {
   return Math.random() * Math.random() * num;
 };
 
+//TODO make it so that both of the can be synced, in a applyUpdate, or a applyDoc command
+//todo it'll provide a single simplified api. similar to how merge was handling everything
+
 //This is a true list crdt
 export class LiveText {
   clientId: number; //client id of the user. used for generating lamport timestamps.
   items: Node[]; //the entire state
-  deletedItems: Record<number, { id: ID; deletedItemId: ID }[]>; //a ClientId and deleted items id map
+  deletedItems: DeleteSet; //a ClientId and deleted items id map
 
   __lamportTimestamp: LamportTimestamp; //the lamport timestamp for inserts
   __deletedLamportTimestamp: LamportTimestamp; //the lamport timestamp for deletes
@@ -205,56 +212,55 @@ export class LiveText {
     nodeAtIndex!.value = undefined;
     this.__length -= 1;
 
+    const deletedNode: DeletedNode = {
+      id: this.__deletedLamportTimestamp.id,
+      deletedItemId: nodeAtIndex!.id,
+    };
+
     //Push it to the delete vector
     if (!this.deletedItems[this.clientId]) {
-      this.deletedItems[this.clientId] = [
-        {
-          id: this.__deletedLamportTimestamp.id,
-          deletedItemId: nodeAtIndex!.id,
-        },
-      ];
+      this.deletedItems[this.clientId] = [deletedNode];
     } else {
-      this.deletedItems[this.clientId].push({
-        id: this.__deletedLamportTimestamp.id,
-        deletedItemId: nodeAtIndex!.id,
-      });
+      this.deletedItems[this.clientId].push(deletedNode);
     }
 
-    return nodeAtIndex;
+    return deletedNode;
   }
 
   //deletes a node by it's id
   deleteNodeById(deletedItem: DeletedNode) {
     const node = this.findNodeById(deletedItem.deletedItemId);
 
+    //todo add a can delete method, to check if the delete exists or not
+
     //if the node exists locally
     if (node) {
-      //if the value exits,
-      if (node.value) {
-        if (this.deletedItems[deletedItem.id[0]]) {
-          const item =
-            this.deletedItems[deletedItem.id[0]][
-              this.deletedItems[deletedItem.id[0]].length - 1
-            ];
+      if (this.deletedItems[deletedItem.id[0]]) {
+        const item =
+          this.deletedItems[deletedItem.id[0]][
+            this.deletedItems[deletedItem.id[0]].length - 1
+          ];
 
-          if (item.id[1] - 1 !== deletedItem.id[1]) {
-            console.warn(`todo!, out of order delete, ignoring it`);
-            return;
-          }
+        //duplicate
+        if (item.id[1] === deletedItem.id[1]) return;
 
-          node.value = "";
-          this.__length -= 1;
-          this.deletedItems[deletedItem.id[0]].push(deletedItem);
-        } else {
-          if (deletedItem.id[1] !== 0) {
-            console.log(`out or order delete, ignoring it`);
-            return;
-          }
-
-          node.value = "";
-          this.__length -= 1;
-          this.deletedItems[deletedItem.id[0]] = [deletedItem];
+        if (item.id[1] + 1 !== deletedItem.id[1]) {
+          console.warn(`todo!, out of order delete, ignoring it`, item);
+          return;
         }
+
+        node.value = "";
+        this.__length -= 1;
+        this.deletedItems[deletedItem.id[0]].push(deletedItem);
+      } else {
+        if (deletedItem.id[1] !== 0) {
+          console.log(`out or order delete, ignoring it`);
+          return;
+        }
+
+        node.value = "";
+        this.__length -= 1;
+        this.deletedItems[deletedItem.id[0]] = [deletedItem];
       }
     }
   }
@@ -496,9 +502,11 @@ export class LiveText {
   //   }
 
   //since deletes do not have a merge conflict
-  syncDeletes(deletedItems: DeletedNode[]) {
-    for (let deletedItem of deletedItems) {
-      this.deleteNodeById(deletedItem);
+  syncDeletes(deleteSet: DeleteSet) {
+    for (let clientId in deleteSet) {
+      deleteSet[clientId].map((deletedItem) => {
+        this.deleteNodeById(deletedItem);
+      });
     }
 
     //todo add the pending structs to the list of pending deletes struts
@@ -597,7 +605,20 @@ export class LiveText {
     return items;
   }
 
-  getStateVectorDiff() {}
+  getEncodedDoc(): EncodedDoc {
+    const items = this.getState();
+    const deletes = this.deletedItems;
+
+    return {
+      items,
+      deletes,
+    };
+  }
+
+  applyDoc(doc: EncodedDoc) {
+    this.merge(doc.items);
+    this.syncDeletes(doc.deletes);
+  }
 
   compareVectors(localVector: StateVector, remoteVector: StateVector) {
     const weLack: Record<number, ID[]> = {};
@@ -697,20 +718,25 @@ export class LiveText {
     //returning all the items not in that remote vector
   }
 
-  sendableDeleted(remoteVector: StateVector) {
-    const sendableDeletedNodes: DeletedNode[] = [];
-    let shouldBroadcastVector: boolean = false;
+  sendableDeletes(remoteVector: StateVector) {
+    const sendableDeletes: DeleteSet = {};
+    let shouldBroadcastDeleteVector: boolean = false;
 
     const localVector = this.getDeleteStateVector();
 
     const { theyLack, weLack } = this.compareVectors(localVector, remoteVector);
 
-    if (Object.keys(weLack).length >= 1) shouldBroadcastVector = true;
+    console.log(`delete vectors`);
+    console.log(localVector);
+    console.log(remoteVector);
+    console.log(`they lack `, theyLack);
+
+    if (Object.keys(weLack).length >= 1) shouldBroadcastDeleteVector = true;
 
     if (Object.keys(theyLack).length < 1)
       return {
-        shouldBroadcastVector,
-        sendableDeletedNodes,
+        shouldBroadcastDeleteVector,
+        sendableDeletes,
       };
 
     for (let clientId in this.deletedItems) {
@@ -720,16 +746,15 @@ export class LiveText {
         if (remoteVector[clientId] === localVector[clientId]) continue;
 
         if (remoteVector[clientId] > localVector[clientId]) continue;
-
-        sendableDeletedNodes.push(
-          ...this.deletedItems[clientId].slice(remoteVector[clientId])
-        );
+        sendableDeletes[clientId] = [
+          ...this.deletedItems[clientId].slice(remoteVector[clientId]),
+        ];
       } else {
-        sendableDeletedNodes.push(...this.deletedItems[clientId]);
+        sendableDeletes[clientId] = [...this.deletedItems[clientId]];
       }
     }
 
-    return sendableDeletedNodes;
+    return { sendableDeletes, shouldBroadcastDeleteVector };
   }
 
   //todo!, we're storing deletes as there own state vector. bo
@@ -743,8 +768,6 @@ export class LiveText {
 
     return vector;
   }
-
-  getDeletedStateVectorDiff(remoteVector: StateVector) {}
 
   //* Steps :-
   //* When a user joins, they fetch localStorage for the data //done
@@ -764,6 +787,13 @@ export class LiveText {
 
   //nope
   bulkDelete(startIndex: number, endIndex: number) {}
+
+  //nope
+  getStateVectorDiff() {}
+
+  //nope
+  //
+  getDeletedStateVectorDiff(remoteVector: StateVector) {}
 
   //so first we'd like to keep track of the other clients, so like a way of knowing the state info of everyone,
   //this would be like a statevector of client ids & the the clock. <Record, clientId, clientClock>
