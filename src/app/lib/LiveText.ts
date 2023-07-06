@@ -121,7 +121,7 @@ export class LiveText {
       right = right.right;
     }
 
-    if (!nodeFound) throw new Error("node not available");
+    if (!nodeFound) throw new Error(`node not available ${nodeId}`);
     return pos;
   }
 

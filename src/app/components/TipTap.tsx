@@ -147,7 +147,7 @@ export const Tiptap = ({ setDescription }) => {
   const broadcast = useBroadcastEvent();
   const updateMyPresence = useUpdateMyPresence();
   const others = useOthers();
-  const [localBlockSelection, setLocalBlockSelection] = useState<ID>();
+  const [localBlockSelection, setLocalBlockSelection] = useState<ID | "END">();
 
   useEffect(() => {
     //@ts-ignore
@@ -203,16 +203,28 @@ export const Tiptap = ({ setDescription }) => {
 
     onTransaction: ({ editor, transaction }) => {
       // console.log(editor.getJSON());
-
       // console.log(editor)
+    },
 
+    onSelectionUpdate: ({ transaction }) => {
+      console.log(`bob`);
       if (!transaction.docChanged) {
         try {
+          if (
+            transaction.selection.ranges[0].$to.pos ===
+            myLivetext.toString().length
+          ) {
+            console.log(`End`);
+            setLocalBlockSelection("END");
+            return;
+          }
+
+          console.log(`selection`);
+          console.log(transaction.selection.ranges[0].$to.pos);
           const node = myLivetext.findNodeAtPos(
             transaction.selection.ranges[0].$to.pos
           );
-          console.log(`selection`);
-          console.log(transaction.selection.ranges[0].$to.pos);
+
           console.log(node);
           setLocalBlockSelection(node.id);
           updateMyPresence({ blockId: node.id });
@@ -222,12 +234,10 @@ export const Tiptap = ({ setDescription }) => {
 
         // editor?.commands.setTextSelection(parsedStep.to - 1);
       } else {
-        // console.log(`doc has changed man!`);
+        console.log(`doc has changed man!`);
         // console.log(transaction.selection.ranges[0].$to.pos);
       }
     },
-
-    onSelectionUpdate: ({ transaction }) => {},
     // onTransaction: ({ editor }) => {
     //   console.log(`transaction`);
     //   const cursorLine = editor.view.state.selection.$anchor.path[1];
@@ -608,11 +618,19 @@ export const Tiptap = ({ setDescription }) => {
         //   myLivetext.findNodeAndPosById(localSelection)
         // );
 
-        const pos = myLivetext.findNodeAndPosById(localSelection);
+        if (localSelection === "END") {
+          editor?.commands.setTextSelection(myLivetext.toString().length);
+        } else {
+          try {
+            const pos = myLivetext.findNodeAndPosById(localSelection);
 
-        editor?.commands.setTextSelection(
-          myLivetext.toString().length === pos ? pos : pos - 1
-        );
+            editor?.commands.setTextSelection(
+              myLivetext.toString().length === pos ? pos : pos - 1
+            );
+          } catch (error) {
+            console.log(error);
+          }
+        }
       }
 
       // console.log(myLivetext.getStateVector());
@@ -632,11 +650,19 @@ export const Tiptap = ({ setDescription }) => {
         //   myLivetext.findNodeAndPosById(localSelection)
         // );
 
-        const pos = myLivetext.findNodeAndPosById(localSelection);
+        if (localSelection === "END") {
+          editor?.commands.setTextSelection(myLivetext.toString().length);
+        } else {
+          try {
+            const pos = myLivetext.findNodeAndPosById(localSelection);
 
-        editor?.commands.setTextSelection(
-          myLivetext.toString().length === pos ? pos : pos - 1
-        );
+            editor?.commands.setTextSelection(
+              myLivetext.toString().length === pos ? pos : pos - 1
+            );
+          } catch (error) {
+            console.log(error);
+          }
+        }
       }
 
       // console.log(myLivetext.getStateVector());
@@ -654,11 +680,19 @@ export const Tiptap = ({ setDescription }) => {
         //   myLivetext.findNodeAndPosById(localSelection)
         // );
 
-        const pos = myLivetext.findNodeAndPosById(localSelection);
+        if (localSelection === "END") {
+          editor?.commands.setTextSelection(myLivetext.toString().length);
+        } else {
+          try {
+            const pos = myLivetext.findNodeAndPosById(localSelection);
 
-        editor?.commands.setTextSelection(
-          myLivetext.toString().length === pos ? pos : pos - 1
-        );
+            editor?.commands.setTextSelection(
+              myLivetext.toString().length === pos ? pos : pos - 1
+            );
+          } catch (error) {
+            console.log(error);
+          }
+        }
       }
 
       localStorage.setItem("myDoc", JSON.stringify(myLivetext.getEncodedDoc()));
@@ -687,11 +721,21 @@ export const Tiptap = ({ setDescription }) => {
       //   myLivetext.findNodeAndPosById(localSelection)
       // );
 
-      const pos = myLivetext.findNodeAndPosById(localSelection);
+      console.log(myLivetext.toString().length);
 
-      editor?.commands.setTextSelection(
-        myLivetext.toString().length === pos ? pos : pos - 1
-      );
+      if (localSelection === "END") {
+        editor?.commands.setTextSelection(myLivetext.toString().length);
+      } else {
+        try {
+          const pos = myLivetext.findNodeAndPosById(localSelection);
+
+          editor?.commands.setTextSelection(
+            myLivetext.toString().length === pos ? pos : pos - 1
+          );
+        } catch (error) {
+          console.log(error);
+        }
+      }
     }
 
     localStorage.setItem("myDoc", JSON.stringify(myLivetext.getEncodedDoc()));
