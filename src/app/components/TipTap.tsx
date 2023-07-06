@@ -603,8 +603,15 @@ export const Tiptap = ({ setDescription }) => {
       editor?.commands.setContent(myLivetext.toProsemirrorJson());
 
       if (localSelection) {
+        // console.log(
+        //   `settingcursor form remote ${localSelection}`,
+        //   myLivetext.findNodeAndPosById(localSelection)
+        // );
+
+        const pos = myLivetext.findNodeAndPosById(localSelection);
+
         editor?.commands.setTextSelection(
-          myLivetext.findNodeAndPosById(localSelection) - 1
+          myLivetext.toString().length === pos ? pos : pos - 1
         );
       }
 
@@ -620,8 +627,15 @@ export const Tiptap = ({ setDescription }) => {
       editor?.commands.setContent(myLivetext.toProsemirrorJson());
 
       if (localSelection) {
+        // console.log(
+        //   `settingcursor form remote ${localSelection}`,
+        //   myLivetext.findNodeAndPosById(localSelection)
+        // );
+
+        const pos = myLivetext.findNodeAndPosById(localSelection);
+
         editor?.commands.setTextSelection(
-          myLivetext.findNodeAndPosById(localSelection) - 1
+          myLivetext.toString().length === pos ? pos : pos - 1
         );
       }
 
@@ -635,8 +649,15 @@ export const Tiptap = ({ setDescription }) => {
       myLivetext.syncDeletes(event.val);
       editor?.commands.setContent(myLivetext.toProsemirrorJson());
       if (localSelection) {
+        // console.log(
+        //   `settingcursor form remote ${localSelection}`,
+        //   myLivetext.findNodeAndPosById(localSelection)
+        // );
+
+        const pos = myLivetext.findNodeAndPosById(localSelection);
+
         editor?.commands.setTextSelection(
-          myLivetext.findNodeAndPosById(localSelection) - 1
+          myLivetext.toString().length === pos ? pos : pos - 1
         );
       }
 
@@ -661,12 +682,15 @@ export const Tiptap = ({ setDescription }) => {
     // console.log(myLivetext.toString());
     editor?.commands.setContent(myLivetext.toProsemirrorJson());
     if (localSelection) {
-      console.log(
-        `settingcursor form remote ${localSelection}`,
-        myLivetext.findNodeAndPosById(localSelection)
-      );
+      // console.log(
+      //   `settingcursor form remote ${localSelection}`,
+      //   myLivetext.findNodeAndPosById(localSelection)
+      // );
+
+      const pos = myLivetext.findNodeAndPosById(localSelection);
+
       editor?.commands.setTextSelection(
-        myLivetext.findNodeAndPosById(localSelection) - 1
+        myLivetext.toString().length === pos ? pos : pos - 1
       );
     }
 
