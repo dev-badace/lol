@@ -3,6 +3,7 @@ import { Extension } from "@tiptap/core";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { receiveTransaction } from "@tiptap/pm/collab";
 import { Editor } from "@tiptap/react";
+import { myLivetext } from "../components/TipTap";
 
 interface User {
   color: string;
@@ -63,29 +64,51 @@ export const myCursor = (user: User) => {
   return dom;
 };
 
-export const createDecorations = (editor: Editor, color?: string) => {
-  const state = editor.storage["mycollabor"];
+export const createDecorations = (editor: Editor, users: any) => {
   //   console.log(editor.view);
+
+  const cursorDecorations: Decoration[] = [];
+
+  users.map(({ blockId }) => {
+    try {
+      //check the position of the node
+      const pos = myLivetext.findNodeAndPosById(blockId);
+      cursorDecorations.push(
+        Decoration.widget(
+          pos - 1,
+          () => myCursor({ name: "bob", color: "teal" }),
+          {
+            side: 10,
+          }
+        )
+      );
+    } catch (error) {}
+  });
 
   editor.view.setProps({
     decorations() {
-      return DecorationSet.create(editor.state.doc, [
-        Decoration.widget(
-          editor.view.state.selection.$anchor.pos,
-          () =>
-            myCursor({
-              name: "bob",
-              color: color ?? state.users.color,
-              position: editor.view.state.selection.$anchor.pos,
-            }),
-          {
-            // key: "99" || Math.random().toString(),
-            side: 10,
-          }
-        ),
-      ]);
+      return DecorationSet.create(editor.state.doc, cursorDecorations);
     },
   });
+  //   editor.view.setProps({
+  //     decorations() {
+  //       return DecorationSet.create(editor.state.doc, [
+  //         Decoration.widget(
+  //           editor.view.state.selection.$anchor.pos,
+  //           () =>
+  //             myCursor({
+  //               name: "bob",
+  //               color: color ?? state.users.color,
+  //               position: editor.view.state.selection.$anchor.pos,
+  //             }),
+  //           {
+  //             // key: "99" || Math.random().toString(),
+  //             side: 10,
+  //           }
+  //         ),
+  //       ]);
+  //     },
+  //   });
 };
 
 export const randCol = () =>
@@ -101,11 +124,11 @@ export const Collab = Extension.create({
         displayname: "Kona",
       },
 
-      updateCursor(editor: Editor) {
-        const col = randCol();
-        editor.extensionStorage.mycollabor.users.color = col;
-        // console.log(`updating edutor ${col}`);
-        createDecorations(editor);
+      updateCursor(editor: Editor, presence: any) {
+        // const col = randCol();
+        // editor.extensionStorage.mycollabor.users.color = col;
+        // // console.log(`updating edutor ${col}`);
+        createDecorations(editor, presence);
       },
 
       remoteUpdate(updates: any, editor: Editor) {},
@@ -114,15 +137,14 @@ export const Collab = Extension.create({
 
   addStorage() {
     return {
-      users: {
-        position: 0,
-        color: "green",
-      },
+      users: [],
     };
   },
 
-  //@ts-ignore
-  onSelectionUpdate(bob) {
+  onUpdate() {},
+
+  onSelectionUpdate() {
+    // console.log(b);
     // console.log(bob.editor);
     // console.log(this);
     // console.log(bob.editor);

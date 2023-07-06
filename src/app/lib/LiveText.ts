@@ -30,14 +30,12 @@ export class LiveText {
   __deletedLamportTimestamp: LamportTimestamp; //the lamport timestamp for deletes
   __head?: Node;
   __tail?: Node;
-  __length: number;
 
   constructor() {
     this.clientId = randomInt(999999);
     this.items = [];
     this.pendingUpdates = [];
     this.deletedItems = {};
-    this.__length = 0;
     this.__lamportTimestamp = new LamportTimestamp(this.clientId);
     this.__deletedLamportTimestamp = new LamportTimestamp(this.clientId);
   }
@@ -68,20 +66,20 @@ export class LiveText {
   //find's the node at a given index
   findNodeAtPos(index: number) {
     //if the index is greater than current existing blocks/items
-    if (index > this.__length - 1) {
+    if (index > this.toString().length - 1) {
       throw new Error("No node at the position");
     }
 
-    //if the index is 0 we just return start
-    if (index === 0) return this.__head;
+    // //if the index is 0 we just return start
+    // if (index === 0) return this.__head;
 
-    //if index is at end we return end
-    if (index === this.__length) return this.__tail;
+    // //if index is at end we return end
+    // if (index === this.toString().length) return this.__tail;
 
     //we loop over the linked list to find the correct item at the index and return the node
 
-    let currentPos = 1;
-    let currentNode = this.__head!.right!;
+    let currentPos = 0;
+    let currentNode = this.__head;
 
     let node;
     while (currentPos <= index) {
@@ -103,12 +101,35 @@ export class LiveText {
     })[0];
   }
 
+  //finds a node's position
+  findNodeAndPosById(nodeId: ID) {
+    let pos = 0;
+    let nodeFound: boolean = false;
+
+    let right = this.__head;
+
+    while (true) {
+      if (!right) break;
+
+      if (right.value) pos++;
+
+      if (LamportTimestamp.compare(right.id, nodeId)) {
+        nodeFound = true;
+        break;
+      }
+
+      right = right.right;
+    }
+
+    if (!nodeFound) throw new Error("node not available");
+    return pos;
+  }
+
   //Inserts an item/block to the given index
   //This is what a client/user uses to update the doc locally
   insert(index: number, value: string): Node {
-    if (this.__length < 0) this.__length = 0;
     //if the user tries to insert at an index greater than the current document's length
-    if (index > this.__length) {
+    if (index > this.toString().length) {
       throw new Error("Invalid Operation");
     }
 
@@ -122,9 +143,6 @@ export class LiveText {
         //set the start & end as the block, since it's the first entry
         this.__head = insertedBlock;
         this.__tail = insertedBlock;
-
-        //set the length to 1 since it's the first entry
-        this.__length = 1;
 
         //push the item to the Doc's items
         this.items.push(insertedBlock);
@@ -141,7 +159,6 @@ export class LiveText {
         //set the current elemnt as the starting element
         this.__head = insertedBlock;
         //increase the length of the document and push the block to Doc's items
-        this.__length += 1;
         this.items.push(insertedBlock);
       }
 
@@ -149,7 +166,7 @@ export class LiveText {
     }
 
     //if the insert is at the end of the document
-    if (index === this.__length) {
+    if (index === this.toString().length) {
       //set the current end's right to the inserted block
       this.__tail!.right = insertedBlock;
 
@@ -161,7 +178,6 @@ export class LiveText {
       this.__tail = insertedBlock;
 
       //increase the length of the document and push the block to Doc's items
-      this.__length += 1;
       this.items.push(insertedBlock);
 
       return insertedBlock;
@@ -191,7 +207,6 @@ export class LiveText {
     insertedBlock.originRight = currentNodeAtPos!.id;
 
     //increase the length && push the element/item/block to the doc
-    this.__length += 1;
     this.items.push(insertedBlock);
     return insertedBlock;
   }
@@ -200,8 +215,8 @@ export class LiveText {
   //this is what a user uses to delete an item locally
   delete(index: number) {
     //if the user tries to delete  a  block at an index greater than the current document's length
-    if (index > this.__length || index < 0) {
-      console.log(this.__length);
+    if (index > this.toString().length || index < 0) {
+      console.log(this.toString().length);
       throw new Error(`Invalid Operation ${index}`);
     }
 
@@ -212,7 +227,6 @@ export class LiveText {
 
     //set the value to undefined & reduce the length
     nodeAtIndex!.value = undefined;
-    this.__length -= 1;
 
     const deletedNode: DeletedNode = {
       id: this.__deletedLamportTimestamp.id,
@@ -245,7 +259,7 @@ export class LiveText {
 
         //duplicate
         if (deletedItem.id[1] <= item.id[1]) {
-          console.log(`we coninuted`);
+          //   console.log(`we coninuted`);
           return;
         }
 
@@ -258,20 +272,18 @@ export class LiveText {
           return;
         }
 
-        console.log(`adding 2 to our list `);
+        // console.log(`adding 2 to our list `);
         node.value = "";
-        this.__length -= 1;
         this.deletedItems[deletedItem.id[0]].push(deletedItem);
-        console.log(`we're reachng here?`);
-        console.log(this.deletedItems);
+        // console.log(`we're reachng here?`);
+        // console.log(this.deletedItems);
       } else {
         if (deletedItem.id[1] !== 0) {
-          console.log(`out or order delete, ignoring it`);
+          //   console.log(`out or order delete, ignoring it`);
           return;
         }
 
         node.value = "";
-        this.__length -= 1;
         this.deletedItems[deletedItem.id[0]] = [deletedItem];
       }
     } else {
@@ -312,17 +324,17 @@ export class LiveText {
 
     const stateVector = this.getStateVector();
 
-    console.log(block);
-    console.log(stateVector);
+    // console.log(block);
+    // console.log(stateVector);
     if (typeof stateVector[block.id[0]] === "undefined" && block.id[1] !== 0) {
-      console.log(`case 1`);
+      //   console.log(`case 1`);
 
       return false;
     } else if (
       typeof stateVector[block.id[0]] === "number" &&
       stateVector[block.id[0]] !== block.id[1] - 1
     ) {
-      console.log(`case 2`);
+      //   console.log(`case 2`);
       return false;
     }
 
@@ -354,7 +366,7 @@ export class LiveText {
     const { newDeletes, unseenUpdates } = this.findChanges(remoteState);
     let isPending: boolean = false;
 
-    console.log(unseenUpdates);
+    // console.log(unseenUpdates);
 
     //* loop over all new updates
     for (let item of unseenUpdates) {
@@ -377,7 +389,6 @@ export class LiveText {
       if (this.items.length < 1) {
         this.__head = newItem;
         this.__tail = newItem;
-        this.__length += 1;
         this.items.push(newItem);
         continue;
       }
@@ -400,7 +411,6 @@ export class LiveText {
         right.left = newItem;
 
         this.items.push(newItem);
-        this.__length += 1;
         continue;
       }
 
@@ -419,7 +429,6 @@ export class LiveText {
         left.right = newItem;
 
         this.items.push(newItem);
-        this.__length += 1;
         continue;
       }
 
@@ -523,7 +532,6 @@ export class LiveText {
         }
 
         this.items.push(newItem);
-        this.__length += 1;
       } else {
         // console.log(`bomb`);
         let right = this.__head;
@@ -532,7 +540,6 @@ export class LiveText {
         right!.left = newItem;
 
         this.items.push(newItem);
-        this.__length += 1;
       }
     }
 
@@ -550,7 +557,6 @@ export class LiveText {
   syncDeletes(deleteSet: DeleteSet) {
     for (let clientId in deleteSet) {
       deleteSet[clientId].map((deletedItem) => {
-        console.log(deletedItem);
         this.deleteNodeById(deletedItem);
       });
     }
@@ -691,8 +697,8 @@ export class LiveText {
 
     for (let client in remoteVector) {
       if (!localVector[client] && typeof remoteVector[client] === "undefined") {
-        console.log(`we lack this ${client}`);
-        console.log(localVector);
+        // console.log(`we lack this ${client}`);
+        // console.log(localVector);
         weLack[client] = [];
         for (let i = 0; i < remoteVector[client]; i++) {
           weLack[client].push([parseInt(client), i]);
@@ -735,7 +741,7 @@ export class LiveText {
       this.getStateVector(),
       remoteVector
     );
-    console.log(`welack`, weLack);
+    // console.log(`welack`, weLack);
 
     if (Object.keys(weLack).length >= 1) shouldBroadcastVector = true;
 
@@ -772,10 +778,10 @@ export class LiveText {
 
     const { theyLack, weLack } = this.compareVectors(localVector, remoteVector);
 
-    console.log(`delete vectors`);
-    console.log(localVector);
-    console.log(remoteVector);
-    console.log(`they lack `, theyLack);
+    // console.log(`delete vectors`);
+    // console.log(localVector);
+    // console.log(remoteVector);
+    // console.log(`they lack `, theyLack);
 
     if (Object.keys(weLack).length >= 1) shouldBroadcastDeleteVector = true;
 
