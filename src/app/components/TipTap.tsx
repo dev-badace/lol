@@ -167,7 +167,7 @@ export const Tiptap = ({ setDescription }) => {
   }, [broadcast]);
 
   useEffect(() => {
-    console.log(`hey man presence man!`);
+    // console.log(`hey man presence man!`);
 
     let presences = [];
     others.map((other) => {
@@ -177,7 +177,7 @@ export const Tiptap = ({ setDescription }) => {
     });
 
     if (editor) {
-      console.log(`updating prens`);
+      // console.log(`updating prens`);
       const ext = getExtensionOptions(editor, "mycollabor");
       ext.updateCursor(editor, presences);
     }
@@ -211,6 +211,9 @@ export const Tiptap = ({ setDescription }) => {
           const node = myLivetext.findNodeAtPos(
             transaction.selection.ranges[0].$to.pos
           );
+          console.log(`selection`);
+          console.log(transaction.selection.ranges[0].$to.pos);
+          console.log(node);
           setLocalBlockSelection(node.id);
           updateMyPresence({ blockId: node.id });
           // console.log(transaction.curSelection);
@@ -219,9 +222,12 @@ export const Tiptap = ({ setDescription }) => {
 
         // editor?.commands.setTextSelection(parsedStep.to - 1);
       } else {
-        console.log(`doc has changed man!`);
+        // console.log(`doc has changed man!`);
+        // console.log(transaction.selection.ranges[0].$to.pos);
       }
     },
+
+    onSelectionUpdate: ({ transaction }) => {},
     // onTransaction: ({ editor }) => {
     //   console.log(`transaction`);
     //   const cursorLine = editor.view.state.selection.$anchor.path[1];
@@ -588,14 +594,17 @@ export const Tiptap = ({ setDescription }) => {
       return;
     }
 
+    const localSelection = localBlockSelection;
+    console.log(localSelection);
+
     if (event.type === "updates") {
       // console.log(`someone sent updates`);
       myLivetext.merge(event.updates);
       editor?.commands.setContent(myLivetext.toProsemirrorJson());
 
-      if (localBlockSelection) {
+      if (localSelection) {
         editor?.commands.setTextSelection(
-          myLivetext.findNodeAndPosById(localBlockSelection)
+          myLivetext.findNodeAndPosById(localSelection) - 1
         );
       }
 
@@ -610,9 +619,9 @@ export const Tiptap = ({ setDescription }) => {
       myLivetext.syncDeletes(event.deletes);
       editor?.commands.setContent(myLivetext.toProsemirrorJson());
 
-      if (localBlockSelection) {
+      if (localSelection) {
         editor?.commands.setTextSelection(
-          myLivetext.findNodeAndPosById(localBlockSelection)
+          myLivetext.findNodeAndPosById(localSelection) - 1
         );
       }
 
@@ -625,9 +634,9 @@ export const Tiptap = ({ setDescription }) => {
     if (event.type === "delete") {
       myLivetext.syncDeletes(event.val);
       editor?.commands.setContent(myLivetext.toProsemirrorJson());
-      if (localBlockSelection) {
+      if (localSelection) {
         editor?.commands.setTextSelection(
-          myLivetext.findNodeAndPosById(localBlockSelection)
+          myLivetext.findNodeAndPosById(localSelection) - 1
         );
       }
 
@@ -651,9 +660,13 @@ export const Tiptap = ({ setDescription }) => {
 
     // console.log(myLivetext.toString());
     editor?.commands.setContent(myLivetext.toProsemirrorJson());
-    if (localBlockSelection) {
+    if (localSelection) {
+      console.log(
+        `settingcursor form remote ${localSelection}`,
+        myLivetext.findNodeAndPosById(localSelection)
+      );
       editor?.commands.setTextSelection(
-        myLivetext.findNodeAndPosById(localBlockSelection) - 1
+        myLivetext.findNodeAndPosById(localSelection) - 1
       );
     }
 
