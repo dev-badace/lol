@@ -27,7 +27,7 @@ import {
   useOthers,
   useUpdateMyPresence,
 } from "../liveblocks.config";
-import { RemoteNode } from "../lib/types";
+import { ID, RemoteNode } from "../lib/types";
 import { useEffect, useState } from "react";
 
 export const Document = Node.create({
@@ -147,7 +147,7 @@ export const Tiptap = ({ setDescription }) => {
   const broadcast = useBroadcastEvent();
   const updateMyPresence = useUpdateMyPresence();
   const others = useOthers();
-  // const [] = useState()
+  const [localBlockSelection, setLocalBlockSelection] = useState<ID>();
 
   useEffect(() => {
     //@ts-ignore
@@ -211,6 +211,7 @@ export const Tiptap = ({ setDescription }) => {
           const node = myLivetext.findNodeAtPos(
             transaction.selection.ranges[0].$to.pos
           );
+          setLocalBlockSelection(node.id);
           updateMyPresence({ blockId: node.id });
           // console.log(transaction.curSelection);
           // console.log(transaction.selection);
@@ -591,6 +592,13 @@ export const Tiptap = ({ setDescription }) => {
       // console.log(`someone sent updates`);
       myLivetext.merge(event.updates);
       editor?.commands.setContent(myLivetext.toProsemirrorJson());
+
+      if (localBlockSelection) {
+        editor?.commands.setTextSelection(
+          myLivetext.findNodeAndPosById(localBlockSelection)
+        );
+      }
+
       // console.log(myLivetext.getStateVector());
       // console.log(event.updates);
       localStorage.setItem("myDoc", JSON.stringify(myLivetext.getEncodedDoc()));
@@ -601,6 +609,13 @@ export const Tiptap = ({ setDescription }) => {
       // console.log(`someone sent deletes`);
       myLivetext.syncDeletes(event.deletes);
       editor?.commands.setContent(myLivetext.toProsemirrorJson());
+
+      if (localBlockSelection) {
+        editor?.commands.setTextSelection(
+          myLivetext.findNodeAndPosById(localBlockSelection)
+        );
+      }
+
       // console.log(myLivetext.getStateVector());
       // console.log(event.deletes);
       localStorage.setItem("myDoc", JSON.stringify(myLivetext.getEncodedDoc()));
@@ -610,6 +625,12 @@ export const Tiptap = ({ setDescription }) => {
     if (event.type === "delete") {
       myLivetext.syncDeletes(event.val);
       editor?.commands.setContent(myLivetext.toProsemirrorJson());
+      if (localBlockSelection) {
+        editor?.commands.setTextSelection(
+          myLivetext.findNodeAndPosById(localBlockSelection)
+        );
+      }
+
       localStorage.setItem("myDoc", JSON.stringify(myLivetext.getEncodedDoc()));
       return;
     }
@@ -630,6 +651,12 @@ export const Tiptap = ({ setDescription }) => {
 
     // console.log(myLivetext.toString());
     editor?.commands.setContent(myLivetext.toProsemirrorJson());
+    if (localBlockSelection) {
+      editor?.commands.setTextSelection(
+        myLivetext.findNodeAndPosById(localBlockSelection) - 1
+      );
+    }
+
     localStorage.setItem("myDoc", JSON.stringify(myLivetext.getEncodedDoc()));
   });
   return (
